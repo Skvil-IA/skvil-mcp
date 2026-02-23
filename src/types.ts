@@ -1,5 +1,12 @@
 /** Skvil API response types. */
 
+export interface BehavioralFinding {
+  syscall: string;
+  target: string;
+  severity: string;
+  description: string;
+}
+
 export interface VerifyResponse {
   known: boolean;
   reputation_score?: number;
@@ -10,17 +17,17 @@ export interface VerifyResponse {
     last_score: number;
     last_risk_level: 'safe' | 'caution' | 'danger';
     findings_by_severity: {
-      critical: number;
-      high: number;
-      medium: number;
-      low: number;
+      critical?: number;
+      high?: number;
+      medium?: number;
+      low?: number;
     };
   };
   crucible?: {
     status: 'clean' | 'suspicious' | 'malicious';
     score: number;
     certified: boolean;
-    behavioral_findings: string[];
+    behavioral_findings: BehavioralFinding[];
     analyzed_at: string;
   } | null;
 }

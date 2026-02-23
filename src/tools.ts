@@ -5,12 +5,10 @@ import { getApiKey } from './config.js';
 
 const HASH_PATTERN = /^sha256:[a-f0-9]{64}$/;
 
-function hashSchema() {
-  return z
-    .string()
-    .regex(HASH_PATTERN, 'Must be "sha256:" followed by 64 hex characters')
-    .describe('SHA-256 composite hash of the skill (e.g. "sha256:4a2f...c81e")');
-}
+const hashSchema = z
+  .string()
+  .regex(HASH_PATTERN, 'Must be "sha256:" followed by 64 hex characters')
+  .describe('SHA-256 composite hash of the skill (e.g. "sha256:4a2f8b...c81e")');
 
 function formatScore(score: number): string {
   if (score >= 80) return `${score.toFixed(1)} (safe)`;
@@ -24,9 +22,9 @@ export function registerTools(server: McpServer): void {
   server.tool(
     'skvil_verify',
     'Check if an AI agent skill is safe before installing it. Returns reputation ' +
-      'score, risk level, on-chain certification status, and community scan data. ' +
+      'score, risk level, certification status, and community scan data. ' +
       'Use this to verify any skill by its SHA-256 composite hash.',
-    { hash: hashSchema() },
+    { hash: hashSchema },
     async ({ hash }) => {
       try {
         const result = await api.verify(hash);
@@ -39,26 +37,27 @@ export function registerTools(server: McpServer): void {
                 text:
                   `**Unknown skill** (${hash})\n\n` +
                   'This skill has never been scanned by the Skvil network.\n' +
-                  'It has no reputation data or on-chain certification.\n\n' +
+                  'It has no reputation data or certification.\n\n' +
                   '**Recommendation:** Do not install without scanning first.',
               },
             ],
           };
         }
 
+        const score = result.reputation_score ?? 0;
+        const totalScans = result.total_scans ?? 0;
+
         const lines: string[] = [
           `**Skill verification: ${hash}**\n`,
-          `- **Reputation score:** ${formatScore(result.reputation_score!)}`,
-          `- **Total community scans:** ${result.total_scans}`,
+          `- **Reputation score:** ${formatScore(score)}`,
+          `- **Total community scans:** ${totalScans}`,
           `- **Risk level:** ${result.risk_summary?.last_risk_level ?? 'unknown'}`,
         ];
 
         if (result.certification) {
-          lines.push(
-            `- **On-chain certification:** ${result.certification} (registered on blockchain)`,
-          );
+          lines.push(`- **Certification:** ${result.certification}`);
         } else {
-          lines.push('- **On-chain certification:** none');
+          lines.push('- **Certification:** none');
         }
 
         if (result.confirmed_malicious) {
@@ -70,9 +69,13 @@ export function registerTools(server: McpServer): void {
 
         if (result.risk_summary) {
           const f = result.risk_summary.findings_by_severity;
-          if (f.critical > 0 || f.high > 0) {
+          const critical = f.critical ?? 0;
+          const high = f.high ?? 0;
+          const medium = f.medium ?? 0;
+          const low = f.low ?? 0;
+          if (critical > 0 || high > 0) {
             lines.push(
-              `\n**Findings:** ${f.critical} critical, ${f.high} high, ${f.medium} medium, ${f.low} low`,
+              `\n**Findings:** ${critical} critical, ${high} high, ${medium} medium, ${low} low`,
             );
           }
         }
@@ -81,7 +84,10 @@ export function registerTools(server: McpServer): void {
           lines.push(`\n**Crucible behavioral analysis:** ${result.crucible.status}`);
           lines.push(`- Behavioral score: ${result.crucible.score}`);
           if (result.crucible.behavioral_findings.length > 0) {
-            lines.push(`- Findings: ${result.crucible.behavioral_findings.join(', ')}`);
+            const descriptions = result.crucible.behavioral_findings
+              .map((f) => f.description)
+              .join(', ');
+            lines.push(`- Findings: ${descriptions}`);
           }
         }
 
@@ -91,14 +97,14 @@ export function registerTools(server: McpServer): void {
           lines.push('Do NOT install. This skill has been confirmed malicious.');
         } else if (result.crucible?.status === 'malicious') {
           lines.push('Do NOT install. Behavioral analysis detected malicious activity.');
-        } else if (result.reputation_score! >= 80 && result.certification) {
+        } else if (score >= 80 && result.certification) {
           lines.push(
-            `Safe to install. This skill is on-chain certified (${result.certification}) ` +
+            `Safe to install. This skill is certified (${result.certification}) ` +
               'with a strong reputation score.',
           );
-        } else if (result.reputation_score! >= 60) {
-          lines.push('Likely safe, but not yet certified on-chain. Install with caution.');
-        } else if (result.reputation_score! < 40) {
+        } else if (score >= 60) {
+          lines.push('Likely safe, but not yet certified. Install with caution.');
+        } else if (score < 40) {
           lines.push('Do NOT install. Low reputation score indicates potential risk.');
         } else {
           lines.push('Proceed with caution. Review findings before installing.');
@@ -115,7 +121,7 @@ export function registerTools(server: McpServer): void {
   server.tool(
     'skvil_stats',
     'Get aggregate statistics from the Skvil community network: total skills ' +
-      'scanned, trusted count, critical findings, and on-chain certified skills.',
+      'scanned, trusted count, critical findings, and certified skills.',
     {},
     async () => {
       try {
@@ -129,7 +135,7 @@ export function registerTools(server: McpServer): void {
                 `- **Total skills scanned:** ${result.total}\n` +
                 `- **Trusted** (reputation >= 70): ${result.trusted}\n` +
                 `- **Critical findings:** ${result.critical}\n` +
-                `- **On-chain certified:** ${result.certified}`,
+                `- **Certified:** ${result.certified}`,
             },
           ],
         };
@@ -142,11 +148,11 @@ export function registerTools(server: McpServer): void {
   // ── skvil_certified ───────────────────────────────────────────────────────
   server.tool(
     'skvil_certified',
-    'List skills that have been verified and certified on-chain by Skvil admins. ' +
-      'Certified skills have been manually reviewed and their certification is ' +
-      'recorded on the blockchain for tamper-proof verification. Returns up to 10 ' +
-      'most recently certified skills with their level (V1/V2/V3/Gold), reputation ' +
-      'score, and certification date.',
+    'List skills that have been verified and certified by Skvil admins. ' +
+      'Certified skills have been manually reviewed and registered for ' +
+      'tamper-proof verification. Returns up to 10 most recently certified ' +
+      'skills with their level (V1/V2/V3/Gold), reputation score, and ' +
+      'certification date.',
     {},
     async () => {
       try {
@@ -157,13 +163,13 @@ export function registerTools(server: McpServer): void {
             content: [
               {
                 type: 'text',
-                text: 'No skills are currently certified on-chain. Be the first to get certified!',
+                text: 'No skills are currently certified. Be the first to get certified!',
               },
             ],
           };
         }
 
-        const lines = ['**On-chain certified skills**\n'];
+        const lines = ['**Certified skills**\n'];
 
         for (const skill of result) {
           lines.push(
@@ -174,8 +180,7 @@ export function registerTools(server: McpServer): void {
         }
 
         lines.push(
-          '\nAll certifications are registered on-chain for tamper-proof, ' +
-            'publicly verifiable trust.',
+          '\nAll certifications are registered for tamper-proof, publicly verifiable trust.',
         );
 
         return { content: [{ type: 'text', text: lines.join('\n') }] };
@@ -191,8 +196,9 @@ export function registerTools(server: McpServer): void {
   // ── skvil_register ────────────────────────────────────────────────────────
   server.tool(
     'skvil_register',
-    'Register for a free Skvil API key (500 scans/day). The key is automatically ' +
-      'cached locally for future use. No sign-up or account required.',
+    'Register for a free Skvil API key. The key is automatically cached ' +
+      'locally for future use. No sign-up or account required. Other tools ' +
+      '(skvil_scan, skvil_report) will use the cached key automatically.',
     {},
     async () => {
       try {
@@ -219,7 +225,7 @@ export function registerTools(server: McpServer): void {
               text:
                 '**API key registered successfully!**\n\n' +
                 `- **Key prefix:** ${result.key_prefix}...\n` +
-                `- **Tier:** ${result.tier} (500 scans/day)\n\n` +
+                `- **Tier:** ${result.tier}\n\n` +
                 'The key has been cached in `~/.skvil/mcp-config.json`.\n' +
                 'You can now use `skvil_scan` and `skvil_report`.',
             },
@@ -239,9 +245,9 @@ export function registerTools(server: McpServer): void {
     'skvil_report',
     'Report a suspicious or malicious AI agent skill to Skvil admins for review. ' +
       'Requires an API key (use skvil_register first). Reports are reviewed by ' +
-      'admins and confirmed findings lead to on-chain revocation.',
+      'admins and confirmed findings lead to certification revocation.',
     {
-      hash: hashSchema(),
+      hash: hashSchema,
       reason: z
         .string()
         .min(10)
@@ -266,7 +272,7 @@ export function registerTools(server: McpServer): void {
                 `- **Status:** ${result.status}\n` +
                 `- **Skill hash:** ${hash}\n\n` +
                 'A Skvil admin will review this report. If confirmed, the skill ' +
-                'will be flagged as malicious and any existing on-chain certification ' +
+                'will be flagged as malicious and any existing certification ' +
                 'will be revoked.',
             },
           ],
@@ -286,10 +292,16 @@ export function registerTools(server: McpServer): void {
       'findings — always provide accurate findings.',
     {
       name: z.string().max(256).describe('Skill name'),
-      composite_hash: hashSchema(),
+      composite_hash: hashSchema,
       file_count: z.number().int().min(0).max(10000).describe('Number of files in the skill'),
       file_hashes: z
-        .record(z.string())
+        .record(
+          z
+            .string()
+            .max(500)
+            .regex(/^[a-zA-Z0-9_\-./]+$/, 'Invalid file path'),
+          z.string().regex(/^[a-f0-9]{64}$/, 'Must be 64 hex characters'),
+        )
         .describe('Map of relative file paths to their SHA-256 hex hashes'),
       score: z.number().int().min(0).max(100).describe('Computed security score (0-100)'),
       risk_level: z.enum(['safe', 'caution', 'danger']).describe('Overall risk assessment'),
@@ -297,7 +309,7 @@ export function registerTools(server: McpServer): void {
         .array(
           z.object({
             severity: z.enum(['critical', 'high', 'medium', 'low']),
-            category: z.string(),
+            category: z.string().max(100),
             description: z.string().max(1000),
             file: z.string().max(500),
             line: z.number().int().optional(),
@@ -307,7 +319,7 @@ export function registerTools(server: McpServer): void {
         .default([])
         .describe('Security findings detected in the skill'),
       frontmatter: z
-        .record(z.unknown())
+        .record(z.union([z.string(), z.number(), z.boolean(), z.null()]))
         .optional()
         .describe('SKILL.md frontmatter metadata (optional)'),
     },
@@ -322,7 +334,7 @@ export function registerTools(server: McpServer): void {
         ];
 
         if (result.certification) {
-          lines.push(`- **On-chain certification:** ${result.certification}`);
+          lines.push(`- **Certification:** ${result.certification}`);
         }
 
         lines.push(
@@ -349,12 +361,13 @@ function formatError(tool: string, error: unknown): string {
         'Use `skvil_register` to get a free API key.'
       );
     }
-    return `**Error in skvil_${tool}** (HTTP ${error.status})\n${error.detail}`;
+    const safeDetail = error.detail.slice(0, 500);
+    return `**Error in skvil_${tool}** (HTTP ${error.status})\n${safeDetail}`;
   }
 
   if (error instanceof Error) {
-    if (error.name === 'AbortError') {
-      return `**Timeout** — the Skvil API did not respond within 15 seconds.`;
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+      return '**Timeout** — the Skvil API did not respond in time. Try again.';
     }
     return `**Error in skvil_${tool}**\n${error.message}`;
   }
