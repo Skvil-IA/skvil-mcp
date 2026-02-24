@@ -5,6 +5,7 @@ import type {
   RegisterResponse,
   StatsResponse,
   CertifiedSkill,
+  CatalogSkill,
   ScanPayload,
   ScanResponse,
   ReportResponse,
@@ -133,6 +134,11 @@ export async function stats(): Promise<StatsResponse> {
 /** List actively certified skills. */
 export async function certified(): Promise<CertifiedSkill[]> {
   return request<CertifiedSkill[]>('GET', '/certified');
+}
+
+/** List all certified skills with full catalog metadata. */
+export async function catalog(): Promise<CatalogSkill[]> {
+  return request<CatalogSkill[]>('GET', '/catalog');
 }
 
 /** Register for a free API key and cache it locally. */

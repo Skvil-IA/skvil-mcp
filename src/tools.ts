@@ -193,6 +193,55 @@ export function registerTools(server: McpServer): void {
     },
   );
 
+  // ── skvil_catalog ──────────────────────────────────────────────────────────
+  server.tool(
+    'skvil_catalog',
+    'Browse the full catalog of Skvil-certified AI agent skills with detailed ' +
+      'metadata: author, version, description, provider, agent platform, file ' +
+      'count, and install URL. Returns up to 100 skills. Use this to discover ' +
+      'safe skills available for installation.',
+    {},
+    async () => {
+      try {
+        const result = await api.catalog();
+
+        if (result.length === 0) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: 'The skill catalog is empty. No certified skills available yet.',
+              },
+            ],
+          };
+        }
+
+        const lines = [`**Skvil skill catalog** (${result.length} certified skills)\n`];
+
+        for (const skill of result) {
+          const parts = [`- **${skill.name}**`];
+          parts.push(`  Level: ${skill.level} | Score: ${formatScore(skill.reputation_score)} | ${skill.total_scans} scans`);
+          if (skill.author) parts.push(`  Author: ${skill.author}`);
+          if (skill.version) parts.push(`  Version: ${skill.version}`);
+          if (skill.description) parts.push(`  ${skill.description}`);
+          if (skill.provider) parts.push(`  Provider: ${skill.provider}`);
+          if (skill.agent) parts.push(`  Agent: ${skill.agent}`);
+          parts.push(`  Files: ${skill.file_count} | Certified: ${skill.certified_at}`);
+          if (skill.skill_url) parts.push(`  Install: ${skill.skill_url}`);
+          parts.push(`  Hash: \`${skill.composite_hash}\``);
+          lines.push(parts.join('\n'));
+        }
+
+        return { content: [{ type: 'text', text: lines.join('\n\n') }] };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: formatError('catalog', error) }],
+          isError: true,
+        };
+      }
+    },
+  );
+
   // ── skvil_register ────────────────────────────────────────────────────────
   server.tool(
     'skvil_register',

@@ -54,6 +54,22 @@ export interface CertifiedSkill {
   total_scans: number;
 }
 
+export interface CatalogSkill {
+  name: string;
+  composite_hash: string;
+  level: 'V1' | 'V2' | 'V3' | 'Gold';
+  reputation_score: number;
+  certified_at: string;
+  total_scans: number;
+  skill_url?: string | null;
+  provider?: string | null;
+  agent?: string | null;
+  file_count: number;
+  author?: string | null;
+  version?: string | null;
+  description?: string | null;
+}
+
 export interface ScanFinding {
   severity: 'critical' | 'high' | 'medium' | 'low';
   category: string;
