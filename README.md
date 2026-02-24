@@ -96,9 +96,30 @@ That's it. The server auto-registers a free API key on first use. Zero config.
 | `skvil_verify` | No | Check if a skill is safe by its SHA-256 hash. Returns reputation score, risk level, on-chain certification status, and Crucible behavioral analysis. |
 | `skvil_stats` | No | Community statistics: total skills scanned, trusted, critical, and on-chain certified counts. |
 | `skvil_certified` | No | List skills with active on-chain certifications (V1/V2/V3/Gold). Up to 10 most recent. |
+| `skvil_catalog` | No | Browse the full catalog of certified skills with metadata, install URLs, and provider info. Up to 100 skills. |
 | `skvil_register` | No | Get a free API key (500 scans/day). Auto-cached locally for future use. |
-| `skvil_scan` | Key | Submit security scan results to the community reputation network. |
+| `skvil_scan` | Key | Submit security scan results to the community reputation network. Requires full skill identification (see below). |
 | `skvil_report` | Key | Report a suspicious skill. Confirmed reports trigger automatic on-chain revocation. |
+
+### skvil_scan — required fields
+
+Every scan submission requires full identification so the Crucible behavioral analysis pipeline can fire:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Skill name (max 256 chars) |
+| `composite_hash` | string | `sha256:{64 hex}` — deterministic hash of all skill files |
+| `file_count` | number | Number of files in the skill |
+| `file_hashes` | object | Map of `"relative/path"` → `"sha256 hex hash"` |
+| `score` | number | Computed security score 0-100 (server recomputes from findings) |
+| `risk_level` | string | `"safe"` \| `"caution"` \| `"danger"` |
+| `skill_url` | string | **Required.** Source URL — must be `https://github.com/...`, `https://gitlab.com/...`, or `https://clawhub.ai/...` |
+| `provider` | string | **Required.** `"github"` \| `"gitlab"` \| `"clawhub"` |
+| `agent` | string | **Required.** Agent platform submitting the scan (e.g. `"claude"`, `"codex"`, `"openclaw"`) |
+| `findings` | array | Security findings (severity, category, description, file, line) |
+| `frontmatter` | object | Optional SKILL.md metadata |
+
+Without `skill_url`, the backend skips Crucible forwarding and the skill can never be certified.
 
 ### Certification levels
 
