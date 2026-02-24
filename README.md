@@ -8,6 +8,7 @@ Verify, scan, and check on-chain certifications for AI agent skills — directly
 
 [![npm version](https://img.shields.io/npm/v/@skvil/mcp-server)](https://www.npmjs.com/package/@skvil/mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![Bun](https://img.shields.io/badge/Bun-compatible-f472b6?logo=bun&logoColor=white)](https://bun.sh)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933)](https://nodejs.org)
 [![MCP](https://img.shields.io/badge/MCP-compatible-8B5CF6)](https://modelcontextprotocol.io)
 
@@ -40,9 +41,25 @@ When you run `skvil_verify`, you're not just checking a database — you're veri
 
 ## Quick start
 
+> **Tip:** Works with both `npx` (Node) and `bunx` (Bun). We recommend **Bun** for faster installs and startup.
+
 ### Claude Desktop
 
 Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "skvil": {
+      "command": "bunx",
+      "args": ["@skvil/mcp-server"]
+    }
+  }
+}
+```
+
+<details>
+<summary>Using npx instead</summary>
 
 ```json
 {
@@ -54,6 +71,8 @@ Add to your `claude_desktop_config.json`:
   }
 }
 ```
+
+</details>
 
 ### Claude Code
 
@@ -63,6 +82,20 @@ Add to your project's `.mcp.json`:
 {
   "mcpServers": {
     "skvil": {
+      "command": "bunx",
+      "args": ["@skvil/mcp-server"]
+    }
+  }
+}
+```
+
+<details>
+<summary>Using npx instead</summary>
+
+```json
+{
+  "mcpServers": {
+    "skvil": {
       "command": "npx",
       "args": ["-y", "@skvil/mcp-server"]
     }
@@ -70,9 +103,25 @@ Add to your project's `.mcp.json`:
 }
 ```
 
+</details>
+
 ### VS Code / Cursor
 
 Add to your settings (JSON):
+
+```json
+{
+  "mcp.servers": {
+    "skvil": {
+      "command": "bunx",
+      "args": ["@skvil/mcp-server"]
+    }
+  }
+}
+```
+
+<details>
+<summary>Using npx instead</summary>
 
 ```json
 {
@@ -84,6 +133,8 @@ Add to your settings (JSON):
   }
 }
 ```
+
+</details>
 
 That's it. The server auto-registers a free API key on first use. Zero config.
 
@@ -237,15 +288,15 @@ The MCP server runs locally as a subprocess of your AI client. It translates MCP
 ```bash
 git clone https://github.com/Skvil-IA/skvil-mcp.git
 cd skvil-mcp
-npm install
-npm run build
+bun install   # or: npm install
+bun run build # or: npm run build
 ```
 
 ### Run locally
 
 ```bash
 # Point to local API for development
-SKVIL_API_URL=http://localhost:8000 node dist/index.js
+SKVIL_API_URL=http://localhost:8000 bun dist/index.js
 ```
 
 ### Test with MCP Inspector
