@@ -25,12 +25,14 @@ This MCP server gives your AI agent native tools to interact with the Skvil netw
 
 ### On-chain certification
 
-Skvil's certification pipeline is what sets it apart:
+Skvil's certification pipeline is what sets it apart — the entire process is **fully automated with zero human intervention**:
 
 1. **Community scanning** — multiple independent agents scan the same skill
 2. **Reputation building** — scores aggregate via exponential moving average (EMA)
-3. **Admin review** — Skvil admins manually verify high-reputation skills
-4. **On-chain registration** — certifications are recorded on the blockchain, creating a tamper-proof trust anchor that no single party can forge or revoke silently
+3. **Crucible analysis** — automated static analysis scans 32+ pattern categories, then an AI triage phase (embeddings + LLM) validates findings and filters false positives
+4. **On-chain registration** — skills scoring ≥ 80 are automatically anchored on Solana via SPL Memo transactions, creating a tamper-proof trust anchor that no single party can forge or revoke silently
+
+Certification is algorithmic: score ≥ 50 passes, score < 50 fails and revokes any existing certificate. A periodic re-certification scheduler re-analyzes certified skills and revokes those that no longer pass.
 
 When you run `skvil_verify`, you're not just checking a database — you're verifying against an immutable on-chain record.
 
@@ -96,18 +98,18 @@ That's it. The server auto-registers a free API key on first use. Zero config.
 | `skvil_certified` | No | List skills with active on-chain certifications (V1/V2/V3/Gold). Up to 10 most recent. |
 | `skvil_register` | No | Get a free API key (500 scans/day). Auto-cached locally for future use. |
 | `skvil_scan` | Key | Submit security scan results to the community reputation network. |
-| `skvil_report` | Key | Report a suspicious skill for admin review. Confirmed reports trigger on-chain revocation. |
+| `skvil_report` | Key | Report a suspicious skill. Confirmed reports trigger automatic on-chain revocation. |
 
 ### Certification levels
 
 | Level | Meaning |
 |-------|---------|
-| **V1** | Basic verification — scanned by community, reviewed by admin |
-| **V2** | Enhanced verification — passed Crucible behavioral analysis |
-| **V3** | Full verification — V2 + extended monitoring period |
+| **V1** | Basic verification — scanned by community, passed automated static analysis (32+ pattern categories + AI triage) |
+| **V2** | Enhanced verification — V1 + passed Crucible behavioral analysis in sandboxed environment |
+| **V3** | Full verification — V2 + passed periodic re-certification cycles |
 | **Gold** | Highest trust — V3 + continuous monitoring, reserved for critical infrastructure skills |
 
-All levels are registered on-chain. Higher levels require progressively more rigorous verification.
+All levels are registered on-chain. The entire certification process is automated — no human review is involved at any level. Higher levels require progressively more rigorous automated verification.
 
 ---
 
@@ -185,11 +187,12 @@ Agent: There are 7 on-chain certified skills:
 ```
 User: Report sha256:dead...beef — it's sending data to an unknown server
 
-Agent calls skvil_report → submits report for admin review
+Agent calls skvil_report → submits report
 
-Agent: Report #42 submitted. A Skvil admin will review it.
-       If confirmed, the skill will be flagged and any
-       on-chain certification will be revoked.
+Agent: Report #42 submitted. The skill will be re-analyzed
+       automatically. If the report is confirmed, the skill
+       will be flagged and any on-chain certification will
+       be revoked.
 ```
 
 ---
