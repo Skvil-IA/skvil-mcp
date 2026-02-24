@@ -371,6 +371,21 @@ export function registerTools(server: McpServer): void {
         .record(z.union([z.string(), z.number(), z.boolean(), z.null()]))
         .optional()
         .describe('SKILL.md frontmatter metadata (optional)'),
+      skill_url: z
+        .string()
+        .max(512)
+        .regex(
+          /^https:\/\/(github\.com|gitlab\.com|clawhub\.ai)\/[^/]+\/[^/].*$/,
+          'Must be a GitHub, GitLab, or ClawHub HTTPS URL',
+        )
+        .describe('Source URL of the skill (e.g. "https://github.com/user/repo")'),
+      provider: z
+        .enum(['github', 'gitlab', 'clawhub'])
+        .describe('Platform hosting the skill'),
+      agent: z
+        .string()
+        .max(50)
+        .describe('Agent platform submitting the scan (e.g. "claude", "codex", "openclaw")'),
     },
     async (params) => {
       try {

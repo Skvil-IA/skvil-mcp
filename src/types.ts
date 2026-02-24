@@ -87,6 +87,9 @@ export interface ScanPayload {
   risk_level: 'safe' | 'caution' | 'danger';
   findings: ScanFinding[];
   frontmatter?: Record<string, unknown>;
+  skill_url: string;
+  provider: 'github' | 'gitlab' | 'clawhub';
+  agent: string;
 }
 
 export interface ScanResponse {
